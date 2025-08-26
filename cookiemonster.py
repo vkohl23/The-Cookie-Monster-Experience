@@ -1,91 +1,171 @@
-import streamlit as st
-from PIL import Image
+import pygame
 import random
+import sys
 
-st.set_page_config(layout="wide")
-st.title("CookieMonster")
+# Initialize pygame
+pygame.init()
 
-player_img = Image.open("boy.png").resize((40, 40))
-cookie_img = Image.open("cookie.jpg").resize((25, 25))
-broccoli_img = Image.open("broccoli.png").resize((30, 30))
+# Screen dimensions
+WIDTH, HEIGHT = 800, 600
+WIN = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("CookieMonster")
 
-GRID_SIZE = 10  
-CELL_SIZE = 50
+# Colors
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
 
+# Load and resize images
+boy_img = pygame.image.load("boy.png")
+boy_img = pygame.transform.scale(boy_img, (40, 40))
 
-if "player_pos" not in st.session_state:
-    st.session_state.player_pos = [GRID_SIZE // 2, GRID_SIZE // 2]
-if "cookies" not in st.session_state:
-    st.session_state.cookies = [[random.randint(0, GRID_SIZE-1), random.randint(0, GRID_SIZE-1)] for _ in range(15)]
-if "broccolis" not in st.session_state:
-    st.session_state.broccolis = [[random.randint(0, GRID_SIZE-1), random.randint(0, GRID_SIZE-1)] for _ in range(5)]
-if "score" not in st.session_state:
-    st.session_state.score = 0
-if "game_over" not in st.session_state:
-    st.session_state.game_over = False
+cookie_img = pygame.image.load("cookie.jpg")
+cookie_img = pygame.transform.scale(cookie_img, (25, 25))
 
+broccoli_img = pygame.image.load("broccoli.png")
+broccoli_img = pygame.transform.scale(broccoli_img, (30, 30))
 
-def move_player(direction):
-    if st.session_state.game_over:
-        return
-    x, y = st.session_state.player_pos
-    if direction == "Up": y -= 1
-    elif direction == "Down": y += 1
-    elif direction == "Left": x -= 1
-    elif direction == "Right": x += 1
+# Player class
+class Player:
+    def __init__(self):
+        self.image = boy_img
+        self.rect = self.image.get_rect(center=(WIDTH//2, HEIGHT//2))
+        self.speed = 5
+        self.move_up = False
+        self.move_down = False
+        self.move_left = False
+        self.move_right = False
 
-  
-    x = max(0, min(GRID_SIZE-1, x))
-    y = max(0, min(GRID_SIZE-1, y))
-    st.session_state.player_pos = [x, y]
+    def handle_event(self, event):
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_w:
+                self.move_up = True
+            if event.key == pygame.K_s:
+                self.move_down = True
+            if event.key == pygame.K_a:
+                self.move_left = True
+            if event.key == pygame.K_d:
+                self.move_right = True
+        if event.type == pygame.KEYUP:
+            if event.key == pygame.K_w:
+                self.move_up = False
+            if event.key == pygame.K_s:
+                self.move_down = False
+            if event.key == pygame.K_a:
+                self.move_left = False
+            if event.key == pygame.K_d:
+                self.move_right = False
 
-    # Eat cookie
-    if [x, y] in st.session_state.cookies:
-        st.session_state.cookies.remove([x, y])
-        st.session_state.score += 1
+    def move(self):
+        if self.move_up and self.rect.top > 0:
+            self.rect.y -= self.speed
+        if self.move_down and self.rect.bottom < HEIGHT:
+            self.rect.y += self.speed
+        if self.move_left and self.rect.left > 0:
+            self.rect.x -= self.speed
+        if self.move_right and self.rect.right < WIDTH:
+            self.rect.x += self.speed
 
-    
-    new_broccolis = []
-    for bx, by in st.session_state.broccolis:
-        if bx < x: bx += 1
-        elif bx > x: bx -= 1
-        if by < y: by += 1
-        elif by > y: by -= 1
-        new_broccolis.append([bx, by])
-    st.session_state.broccolis = new_broccolis
+    def draw(self, win):
+        win.blit(self.image, self.rect)
 
-  
-    if [x, y] in st.session_state.broccolis:
-        st.session_state.game_over = True
+# Cookie class
+class Cookie:
+    def __init__(self):
+        self.image = cookie_img
+        x = random.randint(30, WIDTH-30)
+        y = random.randint(30, HEIGHT-30)
+        self.rect = self.image.get_rect(center=(x, y))
 
-cols = st.columns(3)
-with cols[0]:
-    if st.button("Up"):
-        move_player("Up")
-with cols[1]:
-    if st.button("Left"):
-        move_player("Left")
-    if st.button("Right"):
-        move_player("Right")
-with cols[2]:
-    if st.button("Down"):
-        move_player("Down")
+    def draw(self, win):
+        win.blit(self.image, self.rect)
 
+# Broccoli class
+class Broccoli:
+    def __init__(self):
+        self.image = broccoli_img
+        x = random.randint(50, WIDTH-50)
+        y = random.randint(50, HEIGHT-50)
+        self.rect = self.image.get_rect(center=(x, y))
+        self.speed = 2
+        self.dir_x = random.choice([-1, 1])
+        self.dir_y = random.choice([-1, 1])
 
-for y in range(GRID_SIZE):
-    cols = st.columns(GRID_SIZE)
-    for x in range(GRID_SIZE):
-        cell_img = Image.new("RGB", (CELL_SIZE, CELL_SIZE), color=(0,0,0))
-        if [x, y] == st.session_state.player_pos:
-            cell_img.paste(player_img, ((CELL_SIZE - player_img.width)//2, (CELL_SIZE - player_img.height)//2))
-        elif [x, y] in st.session_state.cookies:
-            cell_img.paste(cookie_img, ((CELL_SIZE - cookie_img.width)//2, (CELL_SIZE - cookie_img.height)//2))
-        elif [x, y] in st.session_state.broccolis:
-            cell_img.paste(broccoli_img, ((CELL_SIZE - broccoli_img.width)//2, (CELL_SIZE - broccoli_img.height)//2))
-        cols[x].image(cell_img)
+    def move(self):
+        self.rect.x += self.dir_x * self.speed
+        self.rect.y += self.dir_y * self.speed
 
+        if self.rect.left <= 0 or self.rect.right >= WIDTH:
+            self.dir_x *= -1
+        if self.rect.top <= 0 or self.rect.bottom >= HEIGHT:
+            self.dir_y *= -1
 
-st.markdown(f"**Score:** {st.session_state.score}")
-if st.session_state.game_over:
-    st.markdown("**Game Over!** Refresh to play again.")
+    def draw(self, win):
+        win.blit(self.image, self.rect)
+
+# Draw text on screen
+def draw_text(win, text, size, x, y, color=WHITE):
+    font = pygame.font.SysFont("comicsans", size)
+    label = font.render(text, True, color)
+    win.blit(label, (x, y))
+
+def game_loop():
+    clock = pygame.time.Clock()
+    player = Player()
+    cookies = [Cookie() for _ in range(6)]
+    broccolis = [Broccoli() for _ in range(3)]
+    score = 0
+    game_over = False
+    run = True
+
+    while run:
+        clock.tick(60)
+        WIN.fill(BLACK)
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                run = False
+                pygame.quit()
+                sys.exit()
+            if not game_over:
+                player.handle_event(event)
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_r and game_over:
+                    return  # Exit to restart
+
+        if not game_over:
+            player.move()
+
+            # Check cookie collision
+            for cookie in cookies[:]:
+                if player.rect.colliderect(cookie.rect):
+                    cookies.remove(cookie)
+                    score += 10
+                    cookies.append(Cookie())
+
+            # Broccoli movement and collision
+            for broccoli in broccolis:
+                broccoli.move()
+                if player.rect.colliderect(broccoli.rect):
+                    game_over = True
+
+        # Drawing
+        player.draw(WIN)
+        for cookie in cookies:
+            cookie.draw(WIN)
+        for broccoli in broccolis:
+            broccoli.draw(WIN)
+
+        # Display score and game over status
+        draw_text(WIN, f"Score: {score}", 36, 10, 10)
+        if game_over:
+            draw_text(WIN, "GAME OVER! Press R to Restart", 48, WIDTH//6, HEIGHT//2, (255, 0, 0))
+
+        pygame.display.update()
+
+def main():
+    while True:
+        game_loop()
+
+if __name__ == "__main__":
+    main()
 
