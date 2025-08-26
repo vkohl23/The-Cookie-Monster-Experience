@@ -5,7 +5,6 @@ import os
 import math
 import pickle
 
-# --- CONFIGURATION ---
 WIDTH, HEIGHT = 800, 600
 FPS = 60
 PLAYER_SIZE = 40
@@ -13,15 +12,12 @@ COOKIE_SIZE = 25
 BROCCOLI_SIZE = 30
 NUM_COOKIES = 8
 NUM_BROCCOLIS = 4
-SAFE_RADIUS = 120  # Minimum distance from player for spawns
-
-# --- INITIALIZE ---
+SAFE_RADIUS = 120  
 pygame.init()
 WIN = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("CookieMonster Open World")
 clock = pygame.time.Clock()
 
-# --- COLORS ---
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 RED = (255, 0, 0)
@@ -29,7 +25,7 @@ GREEN = (0, 200, 0)
 YELLOW = (255, 255, 0)
 BLUE = (0, 120, 255)
 
-# --- LOAD ASSETS ---
+
 def load_image(name, size):
     try:
         img = pygame.image.load(name)
@@ -52,7 +48,7 @@ def load_sound(name):
 eat_sound = load_sound("eat.wav")
 lose_sound = load_sound("lose.wav")
 
-# --- UTILS ---
+
 def draw_text(win, text, size, x, y, color=WHITE, center=False):
     font = pygame.font.SysFont("comicsans", size)
     label = font.render(text, True, color)
@@ -79,7 +75,6 @@ def load_score():
     except Exception:
         return 0
 
-# --- CLASSES ---
 class Player:
     def __init__(self):
         self.image = boy_img
@@ -119,6 +114,8 @@ class Cookie:
     def draw(self, win):
         win.blit(self.image, self.rect)
 
+SAFE_RADIUS = 40  
+
 class Broccoli:
     def __init__(self, player_rect):
         while True:
@@ -132,7 +129,6 @@ class Broccoli:
         self.angle = random.uniform(0, 2*math.pi)
 
     def move(self):
-        # Open world movement: bounce off walls, random angle change
         self.rect.x += int(math.cos(self.angle) * self.speed)
         self.rect.y += int(math.sin(self.angle) * self.speed)
         if self.rect.left <= 0 or self.rect.right >= WIDTH:
@@ -144,7 +140,52 @@ class Broccoli:
     def draw(self, win):
         win.blit(self.image, self.rect)
 
-# --- GAME STATES ---
+
+
+class Game:
+    def __init__(self):
+        self.state = "menu"
+        self.player = Player()
+        self.cookies = []
+        self.broccolis = []
+        self.score = 0
+        self.high_score = load_score()
+        self.paused = False
+        self.last_broccoli_spawn = pygame.time.get_ticks()
+
+    def reset(self):
+        self.player = Player()
+        self.cookies = [Cookie(self.player.rect) for _ in range(NUM_COOKIES)]
+        self.broccolis = [Broccoli(self.player.rect) for _ in range(NUM_BROCCOLIS)]
+        self.score = 0
+        self.paused = False
+        self.last_broccoli_spawn = pygame.time.get_ticks()
+
+    def update(self):
+        self.player.move()
+        
+        for cookie in self.cookies[:]:
+            if self.player.rect.colliderect(cookie.rect):
+                self.cookies.remove(cookie)
+                self.score += 10
+                if eat_sound: eat_sound.play()
+                self.cookies.append(Cookie(self.player.rect))
+        
+        for broccoli in self.broccolis:
+            broccoli.move()
+            if self.player.rect.colliderect(broccoli.rect):
+                if lose_sound: lose_sound.play()
+                self.state = "gameover"
+                if self.score > self.high_score:
+                    self.high_score = self.score
+                    save_score(self.high_score)
+        
+        now = pygame.time.get_ticks()
+        if now - self.last_broccoli_spawn > 8000:
+            self.broccolis.extend([Broccoli(self.player.rect) for _ in range(2)])
+            self.last_broccoli_spawn = now
+
+
 class Game:
     def __init__(self):
         self.state = "menu"
@@ -210,14 +251,14 @@ class Game:
 
     def update(self):
         self.player.move()
-        # Cookie collision
+       
         for cookie in self.cookies[:]:
             if self.player.rect.colliderect(cookie.rect):
                 self.cookies.remove(cookie)
                 self.score += 10
                 if eat_sound: eat_sound.play()
                 self.cookies.append(Cookie(self.player.rect))
-        # Broccoli movement and collision
+      
         for broccoli in self.broccolis:
             broccoli.move()
             if self.player.rect.colliderect(broccoli.rect):
@@ -256,6 +297,6 @@ class Game:
                 if event.key == pygame.K_ESCAPE:
                     self.state = "menu"
 
-# --- MAIN ---
+
 if __name__ == "__main__":
     Game().run()
