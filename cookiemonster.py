@@ -83,9 +83,14 @@ class Cookie:
 class Broccoli:
     def __init__(self):
         self.image = broccoli_img
-        x = random.randint(50, WIDTH-50)
-        y = random.randint(50, HEIGHT-50)
-        self.rect = self.image.get_rect(center=(x, y))
+        while True:
+            x = random.randint(50, WIDTH-50)
+            y = random.randint(50, HEIGHT-50)
+            self.rect = self.image.get_rect(center=(x, y))
+            # Avoid spawning on player
+            player_start_rect = pygame.Rect(WIDTH//2-20, HEIGHT//2-20, 40, 40)
+            if not self.rect.colliderect(player_start_rect):
+                break
         self.speed = 2
         self.dir_x = random.choice([-1, 1])
         self.dir_y = random.choice([-1, 1])
@@ -101,7 +106,6 @@ class Broccoli:
 
     def draw(self, win):
         win.blit(self.image, self.rect)
-
 # Draw text on screen
 def draw_text(win, text, size, x, y, color=WHITE):
     font = pygame.font.SysFont("comicsans", size)
@@ -168,4 +172,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
